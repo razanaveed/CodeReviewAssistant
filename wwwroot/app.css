@@ -1,0 +1,41 @@
+body {
+    background-color: #0f172a; /* dark navy */
+    color: #e2e8f0;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+/* Card style */
+.card {
+    background-color: #1e293b;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+/* Inputs */
+input, textarea {
+    background-color: #e2e8f0 !important;
+    border: 1px solid #334155 !important;
+    color: #020617 !important;
+}
+
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    border: none;
+}
+
+/* Navbar */
+.navbar {
+    backdrop-filter: blur(10px);
+}
+
+/* Validation */
+.validation-message {
+    color: #f87171;
+}
+
+/* Toast */
+.toast {
+    border-radius: 10px;
+}

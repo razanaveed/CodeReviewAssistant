@@ -1,0 +1,51 @@
+﻿body {
+    background: linear-gradient(135deg, #0f172a, #020617);
+    color: #e2e8f0;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    padding: 20px;
+}
+
+.btn-modern {
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    transition: 0.3s;
+}
+
+    .btn-modern:hover {
+        transform: scale(1.05);
+    }
+
+.badge-soft {
+    background: rgba(59,130,246,0.2);
+    color: #93c5fd;
+    padding: 5px 10px;
+    border-radius: 8px;
+}
+.code-input {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9rem;
+    background: #1e1e1e;
+    color: #dcdcdc;
+    border-radius: 5px;
+}
+
+.code-block {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9rem;
+    background: #1e1e1e;
+    color: #dcdcdc;
+    margin: 0;
+    padding: 1rem;
+    overflow-x: auto;
+    border-radius: 5px;
+}

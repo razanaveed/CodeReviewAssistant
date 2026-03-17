@@ -1,0 +1,208 @@
+﻿@page "/"
+@using CodeReviewAssistant.Models
+@using CodeReviewAssistant.Services
+@using System.Text.RegularExpressions;
+@using System.Text.Json;
+@inject OpenAIService AI
+@inject SettingsService SettingsService
+@inject IJSRuntime JS
+
+<div class="container-fluid p-4">
+    <div class="row g-4">
+
+        <!-- Editor -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <span>Code Editor</span>
+                    <button class="btn btn-sm btn-light" @onclick="CopyEditor">Copy</button>
+                </div>
+                <div class="card-body p-0">
+                    <textarea class="form-control code-input p-2" rows="15" @bind="code" placeholder="Paste your code here..."></textarea>
+                </div>
+                <div class="card-footer">
+                    <button class="btn btn-success w-100" @onclick="Run">Review Code</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Output -->
+        <div class="col-md-6">
+            @if (result != null)
+            {
+                <!-- Improvements -->
+                <div class="card mb-3 shadow-sm">
+                    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                        <span>Improvements</span>
+                        <button class="btn btn-sm btn-light" @onclick="() => CopyList(result.Improvements)">Copy</button>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            @foreach (var i in result.Improvements)
+                            {
+                                <li class="list-group-item">@i</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Positives -->
+                <div class="card mb-3 shadow-sm">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <span>Positive Notes</span>
+                        <button class="btn btn-sm btn-light" @onclick="() => CopyList(result.Positives)">Copy</button>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            @foreach (var p in result.Positives)
+                            {
+                                <li class="list-group-item">@p</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Refactored Code -->
+                @if (!string.IsNullOrEmpty(result.RefactoredCode))
+                {
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                            <span>Refactored Code</span>
+                            <button class="btn btn-sm btn-light" @onclick="CopyRefactored">Copy</button>
+                        </div>
+                        <div class="card-body p-0">
+                            <pre class="code-block"><code class="language-csharp">@result.RefactoredCode</code></pre>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private string code;
+    private ReviewResult result;
+
+    private async Task Run()
+    {
+        if (string.IsNullOrWhiteSpace(SettingsService.Settings.ApiKey))
+        {
+            await JS.InvokeVoidAsync("toastInterop.showToast", "API Key is missing in settings!", "danger");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            await JS.InvokeVoidAsync("toastInterop.showToast", "Please paste some code to review.!", "warning");
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("toastInterop.showToast", "Processing code review...", "info");
+
+            var raw = await AI.ReviewCodeAsync(code, SettingsService.Settings);
+            // 🔥 HANDLE API ERRORS
+            if (raw.StartsWith("ERROR::"))
+            {
+                var parts = raw.Split("::");
+
+                var codeType = parts.Length > 1 ? parts[1] : "unknown";
+                var message = parts.Length > 2 ? parts[2] : "Unknown error";
+
+                switch (codeType)
+                {
+                    case "invalid_api_key":
+                        await JS.InvokeVoidAsync("toastInterop.showToast", "Invalid API Key! Please check settings.", "danger");
+                        break;
+
+                    case "insufficient_quota":
+                        await JS.InvokeVoidAsync("toastInterop.showToast", "Quota exceeded. Upgrade your plan.", "warning");
+                        break;
+
+                    case "rate_limit_exceeded":
+                        await JS.InvokeVoidAsync("toastInterop.showToast", "Too many requests. Try again later.", "warning");
+                        break;
+
+                    default:
+                        await JS.InvokeVoidAsync("toastInterop.showToast", message, "danger");
+                        break;
+                }
+
+                return;
+            }
+            result = Parse(raw);
+
+            await JS.InvokeVoidAsync("toastInterop.showToast", "Code review completed successfully!", "success");
+
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("toastInterop.showToast", $"Error: {ex.Message}", "danger");
+
+        }
+    }
+    private ReviewResult Parse(string raw)
+    {
+        var result = new ReviewResult();
+
+        if (string.IsNullOrWhiteSpace(raw))
+            return result;
+
+        string currentSection = "";
+
+        var lines = raw.Split('\n');
+
+        foreach (var line in lines)
+        {
+            var l = line.Trim();
+
+            // Detect sections
+            if (l.StartsWith("Improvements", StringComparison.OrdinalIgnoreCase))
+            {
+                currentSection = "improvements";
+                continue;
+            }
+            else if (l.StartsWith("Positive", StringComparison.OrdinalIgnoreCase))
+            {
+                currentSection = "positives";
+                continue;
+            }
+            else if (l.StartsWith("Refactored", StringComparison.OrdinalIgnoreCase))
+            {
+                currentSection = "refactored";
+                continue;
+            }
+
+            // Skip markdown code fences
+            if (l.StartsWith("```"))
+                continue;
+
+            // Assign content based on section
+            switch (currentSection)
+            {
+                case "improvements":
+                    if (!string.IsNullOrWhiteSpace(l))
+                        result.Improvements.Add(l);
+                    break;
+
+                case "positives":
+                    if (!string.IsNullOrWhiteSpace(l))
+                        result.Positives.Add(l);
+                    break;
+
+                case "refactored":
+                    result.RefactoredCode += l + "\n";
+                    break;
+            }
+        }
+
+        return result;
+    }
+    
+    // Copy helpers
+    private async Task CopyEditor() => await JS.InvokeVoidAsync("navigator.clipboard.writeText", code);
+    private async Task CopyRefactored() => await JS.InvokeVoidAsync("navigator.clipboard.writeText", result?.RefactoredCode ?? "");
+    private async Task CopyList(List<string> items) => await JS.InvokeVoidAsync("navigator.clipboard.writeText", string.Join("\n", items));
+}
